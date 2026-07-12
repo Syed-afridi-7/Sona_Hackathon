@@ -158,7 +158,53 @@ function HomeComponent() {
         </div>
       </section>
 
-      {/* 5. Recommended Businesses list */}
+      {/* 5. Featured Mentors & Builders */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-white uppercase tracking-wider">
+          <Sparkles className="w-4 h-4 text-emerald-400" /> Featured Mentors & Builders
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {profiles.filter(p => p.role === 'MENTOR' || p.role === 'ENTREPRENEUR').map((person) => {
+            const isMentor = person.role === 'MENTOR'
+            return (
+              <div key={person.id} className="glass-card rounded-xl p-3 flex flex-col justify-between border border-white/5 text-left h-[130px]">
+                <div className="flex items-center gap-2.5">
+                  <img 
+                    src={person.avatarUrl} 
+                    alt={person.displayName} 
+                    className="w-8 h-8 rounded-full object-cover bg-white/5 border border-white/10 aspect-square"
+                  />
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-xs text-[var(--text-app)] truncate leading-none">{person.displayName}</h4>
+                    <span className={`text-[8px] font-bold uppercase mt-1 inline-block ${
+                      isMentor ? 'text-emerald-400' : 'text-cyan-400'
+                    }`}>
+                      {isMentor ? 'Advisor' : 'Builder'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] line-clamp-2 leading-relaxed mt-1">
+                  {person.description}
+                </p>
+                <div className="flex justify-between items-center text-[9px] text-[var(--text-muted)] pt-1.5 border-t border-white/5 mt-1">
+                  <span className="truncate">{person.location}</span>
+                  <Link 
+                    to="/discover" 
+                    search={{ category: undefined }} 
+                    className={`font-bold hover:underline ${
+                      isMentor ? 'text-emerald-400' : 'text-cyan-400'
+                    }`}
+                  >
+                    View
+                  </Link>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* 6. Recommended Businesses list */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-1.5 text-xs font-bold text-white uppercase tracking-wider">
           <Sparkles className="w-4 h-4 text-accent" /> Recommended for You

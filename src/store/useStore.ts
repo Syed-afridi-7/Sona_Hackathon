@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type UserRole = 'BUSINESS' | 'INVESTOR' | 'ADMIN'
+export type UserRole = 'BUSINESS' | 'INVESTOR' | 'ADMIN' | 'MENTOR' | 'ENTREPRENEUR'
 export type VerifyStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
 export type MeetingStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED'
 
@@ -33,6 +33,16 @@ export interface Profile {
   investmentMin?: number
   investmentMax?: number
   preferredStage?: string
+
+  // Mentor specific
+  domainExpertise?: string[]
+  hourlyRate?: number
+  advisoryRolesHeld?: number
+
+  // Entrepreneur specific
+  primarySkills?: string[]
+  yearsExperience?: number
+  equityExpectationRange?: string
 }
 
 export interface PitchReel {
@@ -60,6 +70,15 @@ export interface Meeting {
   isOnline: boolean
   status: MeetingStatus
   meetingLink?: string
+  type?: 'INVESTMENT' | 'MENTORSHIP' | 'COFOUNDER'
+}
+
+export interface CofounderConnection {
+  id: string
+  startupId: string
+  entrepreneurId: string
+  status: 'PENDING' | 'MATCHED' | 'DECLINED'
+  createdAt: string
 }
 
 interface AppState {
@@ -68,6 +87,7 @@ interface AppState {
   reels: PitchReel[]
   messages: ChatMessage[]
   meetings: Meeting[]
+  cofounderConnections: CofounderConnection[]
   interestedBusinessIds: string[]
   
   // Actions
@@ -81,6 +101,8 @@ interface AppState {
   uploadVerificationDocs: (businessId: string, docUrls: string[]) => void
   approveVerification: (businessId: string) => void
   rejectVerification: (businessId: string) => void
+  requestCofounderConnection: (startupId: string, entrepreneurId: string) => void
+  respondToCofounderConnection: (connectionId: string, status: 'MATCHED' | 'DECLINED') => void
 }
 
 // High-Fidelity Mock Seed Data
@@ -184,6 +206,31 @@ const mockProfiles: Profile[] = [
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80',
     description: 'Connexion platform master administrator. Authorizes verified startup badges, monitors system metrics, and oversees compliance documents audit.',
     verificationStatus: 'VERIFIED'
+  },
+  {
+    id: 'p-mentor',
+    role: 'MENTOR',
+    displayName: 'Vikram Malhotra',
+    location: 'Mumbai, India',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80',
+    description: 'Former VP of Product at Razorpay. Helping fintech and SaaS startups scale from 0 to 10M ARR. Specialize in GTM strategy and pricing optimization.',
+    verificationStatus: 'VERIFIED',
+    preferredIndustries: ['Fintech', 'SaaS'],
+    domainExpertise: ['Product Strategy', 'Fintech ScaleUp', 'Pricing Models'],
+    hourlyRate: 150,
+    advisoryRolesHeld: 8
+  },
+  {
+    id: 'p-entrepreneur',
+    role: 'ENTREPRENEUR',
+    displayName: 'Devendra Sharma',
+    location: 'Delhi, India',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
+    description: 'Full-Stack developer and serial builder. Built and sold an edtech micro-SaaS. Looking to join a CleanTech or BioTech startup as technical co-founder.',
+    verificationStatus: 'VERIFIED',
+    primarySkills: ['React', 'Node.js', 'Solidity', 'System Architecture'],
+    yearsExperience: 8,
+    equityExpectationRange: '5% - 15%'
   }
 ]
 
@@ -237,6 +284,7 @@ export const useStore = create<AppState>((set) => ({
   reels: mockReels,
   messages: mockMessages,
   meetings: [],
+  cofounderConnections: [],
   interestedBusinessIds: ['p-1'], // Initially marked interested in Aura Biotech
 
   login: (role, email) => {
@@ -362,5 +410,32 @@ export const useStore = create<AppState>((set) => ({
       ? { ...state.currentUser, verificationStatus: 'REJECTED' as VerifyStatus }
       : state.currentUser
     return { profiles: updatedProfiles, currentUser: updatedUser }
+  }),
+
+  requestCofounderConnection: (startupId, entrepreneurId) => set((state) => {
+    const exists = state.cofounderConnections.some(
+      c => c.startupId === startupId && c.entrepreneurId === entrepreneurId
+    )
+    if (exists) return {}
+
+    const newConnection: CofounderConnection = {
+      id: `cf-${Math.random().toString(36).substr(2, 9)}`,
+      startupId,
+      entrepreneurId,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    }
+    return {
+      cofounderConnections: [...state.cofounderConnections, newConnection]
+    }
+  }),
+
+  respondToCofounderConnection: (connectionId, status) => set((state) => {
+    const updated = state.cofounderConnections.map(c => 
+      c.id === connectionId ? { ...c, status } : c
+    )
+    return {
+      cofounderConnections: updated
+    }
   })
 }))

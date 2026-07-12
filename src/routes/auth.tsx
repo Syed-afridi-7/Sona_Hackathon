@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
-import { Briefcase, Coins, ArrowRight, ArrowLeft, ShieldCheck, Mail, Lock, User, MapPin, Shield } from 'lucide-react'
+import { Briefcase, Coins, ArrowRight, ArrowLeft, ShieldCheck, Mail, Lock, User, MapPin, Shield, Compass, Users } from 'lucide-react'
 
 export const Route = createFileRoute('/auth')({
   component: AuthComponent,
 })
 
-type UserRole = 'BUSINESS' | 'INVESTOR' | 'ADMIN' | null
+type UserRole = 'BUSINESS' | 'INVESTOR' | 'ADMIN' | 'MENTOR' | 'ENTREPRENEUR' | null
 type AuthMode = 'LOGIN' | 'SIGNUP'
 
 function AuthComponent() {
@@ -38,7 +38,7 @@ function AuthComponent() {
       if (mode === 'LOGIN') {
         // Execute mock Login with role check
         login(role || 'BUSINESS', email)
-        if (role === 'ADMIN') {
+        if (role === 'ADMIN' || role === 'MENTOR' || role === 'ENTREPRENEUR') {
           navigate({ to: '/dashboard' })
         } else {
           navigate({ to: '/home' })
@@ -93,30 +93,58 @@ function AuthComponent() {
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0)
 
-    if (role === 'INVESTOR' && sanitizedIndustries.length === 0) {
-      setValidationError('Please specify at least one target industry.')
+    if ((role === 'INVESTOR' || role === 'MENTOR' || role === 'ENTREPRENEUR') && sanitizedIndustries.length === 0) {
+      setValidationError('Please specify at least one target tag/industry/skill.')
       return
     }
 
     // Complete Onboarding transaction
     login(role || 'BUSINESS', email)
     
-    if (role !== 'ADMIN') {
+    if (role === 'BUSINESS') {
       updateProfile({
         displayName: name,
         location,
         companyName,
-        description: role === 'BUSINESS' 
-          ? description 
-          : `Managing Partner at ${companyName || 'Venture Capital'}. Focus: ${sanitizedIndustries.join(', ')}.`,
-        
-        // Role-specific fields
-        industry: role === 'BUSINESS' ? industry : undefined,
-        preferredIndustries: role === 'INVESTOR' ? sanitizedIndustries : undefined,
-        investmentMin: role === 'INVESTOR' ? Number(investmentMin) : undefined,
-        investmentMax: role === 'INVESTOR' ? Number(investmentMax) : undefined
+        description,
+        industry,
+        verificationStatus: 'PENDING'
       })
       navigate({ to: '/home' })
+    } else if (role === 'INVESTOR') {
+      updateProfile({
+        displayName: name,
+        location,
+        companyName,
+        description: `Managing Partner at ${companyName || 'Venture Capital'}. Focus: ${sanitizedIndustries.join(', ')}.`,
+        preferredIndustries: sanitizedIndustries,
+        investmentMin: Number(investmentMin),
+        investmentMax: Number(investmentMax),
+        verificationStatus: 'VERIFIED'
+      })
+      navigate({ to: '/home' })
+    } else if (role === 'MENTOR') {
+      updateProfile({
+        displayName: name,
+        location,
+        description,
+        domainExpertise: sanitizedIndustries,
+        hourlyRate: Number(investmentMin) || 0,
+        advisoryRolesHeld: 0,
+        verificationStatus: 'VERIFIED'
+      })
+      navigate({ to: '/dashboard' })
+    } else if (role === 'ENTREPRENEUR') {
+      updateProfile({
+        displayName: name,
+        location,
+        description,
+        primarySkills: sanitizedIndustries,
+        yearsExperience: Number(investmentMin) || 0,
+        equityExpectationRange: companyName || '5% - 15%',
+        verificationStatus: 'VERIFIED'
+      })
+      navigate({ to: '/dashboard' })
     } else {
       navigate({ to: '/dashboard' })
     }
@@ -148,11 +176,11 @@ function AuthComponent() {
         {step === 1 && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="text-center">
-              <h2 className="font-display font-extrabold text-2xl text-white">Join the Marketplace</h2>
+              <h2 className="font-display font-extrabold text-2xl text-white">Join the Ecosystem</h2>
               <p className="text-xs text-gray-400 mt-1">Select your account type to proceed</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3.5">
+            <div className="grid grid-cols-1 gap-3 max-h-[360px] overflow-y-auto no-scrollbar pr-1">
               <button 
                 onClick={() => setRole('BUSINESS')}
                 className={`flex gap-4 p-4 rounded-xl border text-left cursor-pointer transition-all ${
@@ -161,12 +189,12 @@ function AuthComponent() {
                     : 'border-white/5 bg-white/5 hover:border-white/15'
                 }`}
               >
-                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 ${role === 'BUSINESS' ? 'bg-primary text-white' : 'bg-white/5 text-gray-400'}`}>
+                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 h-11 w-11 ${role === 'BUSINESS' ? 'bg-primary text-white' : 'bg-white/5 text-gray-400'}`}>
                   <Briefcase className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-white">I am a Business</h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Looking for capital, strategic mentors, and growth advisory.</p>
+                  <h3 className="font-semibold text-sm text-white leading-none">I am a Startup</h3>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Looking for capital investment, mentors, and operator talent.</p>
                 </div>
               </button>
 
@@ -178,12 +206,46 @@ function AuthComponent() {
                     : 'border-white/5 bg-white/5 hover:border-white/15'
                 }`}
               >
-                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 ${role === 'INVESTOR' ? 'bg-accent text-white' : 'bg-white/5 text-gray-400'}`}>
+                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 h-11 w-11 ${role === 'INVESTOR' ? 'bg-accent text-white' : 'bg-white/5 text-gray-400'}`}>
                   <Coins className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-white">I am an Investor</h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Looking to discover early-stage startups and high-potential businesses.</p>
+                  <h3 className="font-semibold text-sm text-white leading-none">I am an Investor</h3>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Looking to fund high-growth businesses and early-stage startups.</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => setRole('MENTOR')}
+                className={`flex gap-4 p-4 rounded-xl border text-left cursor-pointer transition-all ${
+                  role === 'MENTOR' 
+                    ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/5' 
+                    : 'border-white/5 bg-white/5 hover:border-white/15'
+                }`}
+              >
+                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 h-11 w-11 ${role === 'MENTOR' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-gray-400'}`}>
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-white leading-none">I am a Mentor</h3>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Helping startups scale with consulting advice and audits.</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => setRole('ENTREPRENEUR')}
+                className={`flex gap-4 p-4 rounded-xl border text-left cursor-pointer transition-all ${
+                  role === 'ENTREPRENEUR' 
+                    ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/5' 
+                    : 'border-white/5 bg-white/5 hover:border-white/15'
+                }`}
+              >
+                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 h-11 w-11 ${role === 'ENTREPRENEUR' ? 'bg-cyan-500 text-white' : 'bg-white/5 text-gray-400'}`}>
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-white leading-none">I am an Entrepreneur</h3>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Looking to join a scaling startup as a builder or co-founder.</p>
                 </div>
               </button>
 
@@ -195,12 +257,12 @@ function AuthComponent() {
                     : 'border-white/5 bg-white/5 hover:border-white/15'
                 }`}
               >
-                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 ${role === 'ADMIN' ? 'bg-red-500 text-white' : 'bg-white/5 text-gray-400'}`}>
+                <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 h-11 w-11 ${role === 'ADMIN' ? 'bg-red-500 text-white' : 'bg-white/5 text-gray-400'}`}>
                   <Shield className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-white">I am an Administrator</h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Access dashboard auditing tools, verify document filings, and badges.</p>
+                  <h3 className="font-semibold text-sm text-white leading-none">Administrator Access</h3>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Access console auditing tools, document checks, and badges.</p>
                 </div>
               </button>
             </div>
@@ -223,7 +285,7 @@ function AuthComponent() {
                 {mode === 'LOGIN' ? 'Welcome Back' : 'Create Account'}
               </h2>
               <p className="text-xs text-gray-400 mt-1">
-                Access your {role === 'BUSINESS' ? 'Business' : role === 'INVESTOR' ? 'Investor' : 'Admin'} portal
+                Access your {role === 'BUSINESS' ? 'Startup' : role === 'INVESTOR' ? 'Investor' : role === 'MENTOR' ? 'Mentor' : role === 'ENTREPRENEUR' ? 'Entrepreneur' : 'Admin'} portal
               </p>
             </div>
 
@@ -281,7 +343,7 @@ function AuthComponent() {
             </div>
 
             <div className="flex flex-col gap-4 max-h-[350px] overflow-y-auto pr-1 no-scrollbar">
-              {role === 'BUSINESS' ? (
+              {role === 'BUSINESS' && (
                 <>
                   <div className="relative">
                     <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
@@ -336,7 +398,9 @@ function AuthComponent() {
                     className="w-full p-4 rounded-xl glass-input text-sm text-white placeholder-gray-500 resize-none"
                   />
                 </>
-              ) : (
+              )}
+
+              {role === 'INVESTOR' && (
                 <>
                   <div className="relative">
                     <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
@@ -393,13 +457,134 @@ function AuthComponent() {
                     <Briefcase className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
                     <input 
                       type="text" 
-                      placeholder="Target Industries (e.g. Fintech, DeepTech)" 
+                      placeholder="Target Industries (e.g. Biotech, AI)" 
                       value={industry}
                       onChange={(e) => setIndustry(e.target.value)}
                       required
                       className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
                     />
                   </div>
+                </>
+              )}
+
+              {role === 'MENTOR' && (
+                <>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Mentor Full Name" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Location" 
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Compass className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Domain Expertises (e.g. GTM, Fintech, ScaleUp)" 
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Coins className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="number" 
+                      placeholder="Hourly Consulting Rate ($)" 
+                      value={investmentMin}
+                      onChange={(e) => setInvestmentMin(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <textarea 
+                    placeholder="Short Description of Expertise & Background" 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    rows={3}
+                    className="w-full p-4 rounded-xl glass-input text-sm text-white placeholder-gray-500 resize-none"
+                  />
+                </>
+              )}
+
+              {role === 'ENTREPRENEUR' && (
+                <>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Full Name" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Location" 
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Primary Skills (e.g. React, GTM, Sales)" 
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="number" 
+                      placeholder="Years Experience" 
+                      value={investmentMin}
+                      onChange={(e) => setInvestmentMin(e.target.value)}
+                      required
+                      className="w-1/2 px-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Equity Expected (e.g. 5-15%)" 
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      required
+                      className="w-1/2 px-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <textarea 
+                    placeholder="Short Operator Bio / What kind of startup are you looking to join?" 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    rows={3}
+                    className="w-full p-4 rounded-xl glass-input text-sm text-white placeholder-gray-500 resize-none"
+                  />
                 </>
               )}
             </div>
