@@ -360,7 +360,7 @@ export const useStore = create<AppState>((set) => ({
   }),
 
   addPitchReel: (videoUrl, caption) => set((state) => {
-    if (!state.currentUser || state.currentUser.role !== 'BUSINESS') return {}
+    if (!state.currentUser) return {}
     const newReel: PitchReel = {
       id: `r-${Math.random().toString(36).substr(2, 9)}`,
       businessId: state.currentUser.id,

@@ -108,8 +108,8 @@ function ReelsComponent() {
         <ArrowLeft className="w-5 h-5" />
       </Link>
 
-      {/* Floating post reel trigger - Visible only for Startup accounts */}
-      {currentUser?.role === 'BUSINESS' && (
+      {/* Floating post reel trigger - Visible for all logged-in accounts */}
+      {currentUser && (
         <button 
           onClick={() => setShowPostModal(true)}
           className="absolute top-4 left-16 z-50 p-2 rounded-full bg-primary/80 backdrop-blur-md text-white hover:bg-primary transition-all cursor-pointer flex items-center justify-center gap-1 text-xs px-3 font-semibold shadow-lg shadow-primary/20"
