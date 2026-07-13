@@ -1,14 +1,14 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
-import { Heart, MessageSquare, User, Volume2, VolumeX, Eye, ArrowLeft } from 'lucide-react'
+import { Heart, MessageSquare, User, Volume2, VolumeX, Eye, ArrowLeft, Plus, X } from 'lucide-react'
 
 export const Route = createFileRoute('/reels')({
   component: ReelsComponent,
 })
 
 function ReelsComponent() {
-  const { reels, profiles, interestedBusinessIds, toggleInterest } = useStore()
+  const { reels, profiles, interestedBusinessIds, toggleInterest, currentUser, addPitchReel } = useStore()
   const [muted, setMuted] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({})
@@ -16,6 +16,11 @@ function ReelsComponent() {
   
   // Track currently active visible reel to enable lazy streaming
   const [activeReelId, setActiveReelId] = useState<string>(reels[0]?.id || '')
+
+  // Create Reel Modal states
+  const [showPostModal, setShowPostModal] = useState(false)
+  const [newCaption, setNewCaption] = useState('')
+  const [newVideoUrl, setNewVideoUrl] = useState('https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c054ba208d130a055307a008db64d5eb&profile_id=139&oauth2_token_id=57447761')
 
   useEffect(() => {
     // Observe reel section wrappers instead of videos directly to control src loading
@@ -75,6 +80,23 @@ function ReelsComponent() {
   // Calculate preloading index offsets
   const activeIdx = reels.findIndex(r => r.id === activeReelId)
 
+  // Handle uploading/posting of new PitchReel
+  const handlePostReel = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCaption.trim()) return
+
+    addPitchReel(newVideoUrl, newCaption)
+    setNewCaption('')
+    setShowPostModal(false)
+    
+    // Alert the browser to auto-align to the newly published reel
+    setTimeout(() => {
+      if (reels.length > 0) {
+        setActiveReelId(reels[0].id)
+      }
+    }, 100)
+  }
+
   return (
     <div className="relative w-full h-[100svh] bg-black overflow-hidden select-none -mx-4 md:max-w-md md:mx-auto md:rounded-3xl md:border md:border-white/10 md:shadow-2xl">
       
@@ -85,6 +107,16 @@ function ReelsComponent() {
       >
         <ArrowLeft className="w-5 h-5" />
       </Link>
+
+      {/* Floating post reel trigger - Visible only for Startup accounts */}
+      {currentUser?.role === 'BUSINESS' && (
+        <button 
+          onClick={() => setShowPostModal(true)}
+          className="absolute top-4 left-16 z-50 p-2 rounded-full bg-primary/80 backdrop-blur-md text-white hover:bg-primary transition-all cursor-pointer flex items-center justify-center gap-1 text-xs px-3 font-semibold shadow-lg shadow-primary/20"
+        >
+          <Plus className="w-4 h-4" /> Post Reel
+        </button>
+      )}
 
       {/* Floating global mute toggle */}
       <button 
@@ -199,7 +231,7 @@ function ReelsComponent() {
                     <span className="text-[10px] text-primary font-medium">{biz?.industry} • {biz?.location}</span>
                   </div>
                   {biz?.verificationStatus === 'VERIFIED' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                   )}
                 </div>
 
@@ -218,6 +250,60 @@ function ReelsComponent() {
           )
         })}
       </div>
+
+      {/* Post Reel Overlay Modal */}
+      {showPostModal && (
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm glass-card rounded-2xl p-6 border border-white/10 text-left flex flex-col gap-4 relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setShowPostModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div>
+              <h3 className="font-display font-extrabold text-lg text-white">Post a PitchReel</h3>
+              <p className="text-[10px] text-gray-400 mt-0.5">Upload a 60-second video elevator pitch to catch investors' attention.</p>
+            </div>
+
+            <form onSubmit={handlePostReel} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">Video Pitch Source</label>
+                <select 
+                  value={newVideoUrl}
+                  onChange={(e) => setNewVideoUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl glass-input text-xs text-white bg-bg-dark cursor-pointer border border-white/10"
+                >
+                  <option value="https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c054ba208d130a055307a008db64d5eb&profile_id=139&oauth2_token_id=57447761">Preset 1: Laboratory Biotech Pitch</option>
+                  <option value="https://player.vimeo.com/external/481977759.sd.mp4?s=d001eb7054bf93f545a90ee9a9ad8f553a067570&profile_id=165&oauth2_token_id=57447761">Preset 2: CleanTech Solar Farm Pitch</option>
+                  <option value="https://player.vimeo.com/external/435649392.sd.mp4?s=564ab10fa4a8b7c7fa6e2dc0883f3e1291ecda53&profile_id=165&oauth2_token_id=57447761">Preset 3: SaaS / AI Agents Demo Pitch</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">Pitch Caption</label>
+                <textarea 
+                  placeholder="Introduce your startup (e.g. Raising our seed round to scale targeted immunotherapies...) #biotech #seed"
+                  value={newCaption}
+                  onChange={(e) => setNewCaption(e.target.value)}
+                  required
+                  rows={4}
+                  className="w-full p-3 rounded-xl glass-input text-xs text-white placeholder-gray-500 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-medium text-xs flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/10 cursor-pointer mt-2"
+              >
+                Post PitchReel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
