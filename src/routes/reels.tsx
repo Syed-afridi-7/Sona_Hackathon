@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
-import { Heart, MessageSquare, User, Volume2, VolumeX, Eye, ArrowLeft, Plus, X } from 'lucide-react'
+import { Heart, MessageSquare, User, Volume2, VolumeX, Eye, ArrowLeft, Plus, X, Upload } from 'lucide-react'
 
 export const Route = createFileRoute('/reels')({
   component: ReelsComponent,
@@ -20,7 +20,10 @@ function ReelsComponent() {
   // Create Reel Modal states
   const [showPostModal, setShowPostModal] = useState(false)
   const [newCaption, setNewCaption] = useState('')
+  const [uploadType, setUploadType] = useState<'preset' | 'file'>('preset')
   const [newVideoUrl, setNewVideoUrl] = useState('https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c054ba208d130a055307a008db64d5eb&profile_id=139&oauth2_token_id=57447761')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     // Observe reel section wrappers instead of videos directly to control src loading
@@ -80,13 +83,28 @@ function ReelsComponent() {
   // Calculate preloading index offsets
   const activeIdx = reels.findIndex(r => r.id === activeReelId)
 
+  // Handle file selection from local gallery
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0])
+    }
+  }
+
   // Handle uploading/posting of new PitchReel
   const handlePostReel = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCaption.trim()) return
 
-    addPitchReel(newVideoUrl, newCaption)
+    let finalVideoUrl = newVideoUrl
+
+    // If uploading from local gallery, create an object URL
+    if (uploadType === 'file' && selectedFile) {
+      finalVideoUrl = URL.createObjectURL(selectedFile)
+    }
+
+    addPitchReel(finalVideoUrl, newCaption)
     setNewCaption('')
+    setSelectedFile(null)
     setShowPostModal(false)
     
     // Alert the browser to auto-align to the newly published reel
@@ -253,49 +271,101 @@ function ReelsComponent() {
 
       {/* Post Reel Overlay Modal */}
       {showPostModal && (
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm glass-card rounded-2xl p-6 border border-white/10 text-left flex flex-col gap-4 relative animate-in zoom-in-95 duration-200">
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#0f0c1b] rounded-2xl p-6 border border-white/15 text-left flex flex-col gap-4 relative animate-in zoom-in-95 duration-200 text-white">
             <button 
               onClick={() => setShowPostModal(false)}
               className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-white" />
             </button>
 
             <div>
               <h3 className="font-display font-extrabold text-lg text-white">Post a PitchReel</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5">Upload a 60-second video elevator pitch to catch investors' attention.</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Publish your elevator pitch to start matchmaking.</p>
+            </div>
+
+            {/* Toggle between preset video or custom gallery file */}
+            <div className="grid grid-cols-2 gap-2 bg-[#17132a] p-1 rounded-xl border border-white/5">
+              <button
+                type="button"
+                onClick={() => setUploadType('preset')}
+                className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
+                  uploadType === 'preset' 
+                    ? 'bg-primary text-white shadow' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Stock Presets
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadType('file')}
+                className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
+                  uploadType === 'file' 
+                    ? 'bg-primary text-white shadow' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Upload File
+              </button>
             </div>
 
             <form onSubmit={handlePostReel} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">Video Pitch Source</label>
-                <select 
-                  value={newVideoUrl}
-                  onChange={(e) => setNewVideoUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl glass-input text-xs text-white bg-bg-dark cursor-pointer border border-white/10"
-                >
-                  <option value="https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c054ba208d130a055307a008db64d5eb&profile_id=139&oauth2_token_id=57447761">Preset 1: Laboratory Biotech Pitch</option>
-                  <option value="https://player.vimeo.com/external/481977759.sd.mp4?s=d001eb7054bf93f545a90ee9a9ad8f553a067570&profile_id=165&oauth2_token_id=57447761">Preset 2: CleanTech Solar Farm Pitch</option>
-                  <option value="https://player.vimeo.com/external/435649392.sd.mp4?s=564ab10fa4a8b7c7fa6e2dc0883f3e1291ecda53&profile_id=165&oauth2_token_id=57447761">Preset 3: SaaS / AI Agents Demo Pitch</option>
-                </select>
-              </div>
+              
+              {uploadType === 'preset' ? (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] uppercase tracking-wider text-gray-300 font-bold">Select Stock Pitch Video</label>
+                  <select 
+                    value={newVideoUrl}
+                    onChange={(e) => setNewVideoUrl(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#17132a] text-white text-xs border border-white/15 outline-none cursor-pointer focus:border-primary"
+                  >
+                    <option value="https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c054ba208d130a055307a008db64d5eb&profile_id=139&oauth2_token_id=57447761" className="bg-[#130f26] text-white">Preset 1: Laboratory Biotech Pitch</option>
+                    <option value="https://player.vimeo.com/external/481977759.sd.mp4?s=d001eb7054bf93f545a90ee9a9ad8f553a067570&profile_id=165&oauth2_token_id=57447761" className="bg-[#130f26] text-white">Preset 2: CleanTech Solar Farm Pitch</option>
+                    <option value="https://player.vimeo.com/external/435649392.sd.mp4?s=564ab10fa4a8b7c7fa6e2dc0883f3e1291ecda53&profile_id=165&oauth2_token_id=57447761" className="bg-[#130f26] text-white">Preset 3: SaaS / AI Agents Demo Pitch</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] uppercase tracking-wider text-gray-300 font-bold">Choose Video File</label>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    accept="video/*" 
+                    onChange={handleFileChange}
+                    className="hidden" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-24 border border-dashed border-white/20 hover:border-primary/50 bg-[#17132a] hover:bg-[#1f1938] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group text-center px-4"
+                  >
+                    <Upload className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] text-gray-300 font-semibold truncate max-w-full">
+                      {selectedFile ? selectedFile.name : "Select Video from Gallery"}
+                    </span>
+                    <span className="text-[8px] text-gray-500">Supports .mp4, .mov, etc.</span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">Pitch Caption</label>
+                <label className="text-[9px] uppercase tracking-wider text-gray-300 font-bold">Pitch Caption</label>
                 <textarea 
-                  placeholder="Introduce your startup (e.g. Raising our seed round to scale targeted immunotherapies...) #biotech #seed"
+                  placeholder="Introduce your project and what you're seeking (e.g. Raising $200k for our decentralized health network...) #finance #growth"
                   value={newCaption}
                   onChange={(e) => setNewCaption(e.target.value)}
                   required
-                  rows={4}
-                  className="w-full p-3 rounded-xl glass-input text-xs text-white placeholder-gray-500 resize-none"
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-[#17132a] text-white placeholder-gray-500 border border-white/15 outline-none focus:border-primary resize-none text-xs leading-normal"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-medium text-xs flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/10 cursor-pointer mt-2"
+                disabled={uploadType === 'file' && !selectedFile}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 cursor-pointer mt-2 disabled:opacity-40 disabled:pointer-events-none"
               >
                 Post PitchReel
               </button>
